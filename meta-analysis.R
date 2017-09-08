@@ -27,8 +27,6 @@ combinedsd <- function(n, mean, sd, na.rm=F) {
   })
 }
 
-# Set suffix according to region of interest
-
 csv.file <- sprintf("means-%s.txt", suffix)
 pcurve.file <- sprintf("pcurve-%s.txt", suffix)
 data.file <- sprintf("data-%s.txt", suffix)
@@ -85,9 +83,18 @@ pvalue <- 2*pt(-abs(tvalue), df=df)
 
 # Meta-regressions
 
+diq <- data$iq.ctrl - data$iq.asd
+riq <- data$iq.ctrl / data$iq.asd
 reg1 <- metareg(meta, ~age.asd)
 reg2 <- metareg(meta, ~iq.asd)
+reg3 <- metareg(meta, ~iq.ctrl)
+reg4 <- metareg(meta, ~diq)
+reg5 <- metareg(meta, ~riq)
+reg6 <- metareg(meta, ~age.asd+diq)
+reg7 <- metareg(meta, ~iq.asd+iq.ctrl)
+reg8 <- metareg(meta, ~age.asd+iq.asd+iq.ctrl)
 reg9 <- metareg(meta, ~age.asd+iq.asd)
+reg10 <- metareg(meta, ~age.asd+iq.asd+I(age.asd*iq.asd))
 reg11 <- metareg(meta, ~I(n.male.asd/n.asd))
 reg12 <- metareg(meta, ~age.asd+iq.asd+I(n.male.asd/n.asd))
 
@@ -155,6 +162,22 @@ plot2Dreg2 <- function(reg) {
 
 plot2Dreg(reg9)
 
+# Regressions between age sd and volume sd
+
+f1 <- data$sd.asd/data$mean.asd ~ data$age.sd.asd
+lm1 <- lm(f1)
+plot(f1)
+text(f1, label=seq(length(data$label)), pos=4)
+abline(lm1, col="blue")
+summary(lm1)
+
+f2 <- data$sd.asd/data$mean.asd ~ data$age.asd
+lm2 <- lm(f2)
+plot(f2)
+text(f2, label=seq(length(data$label)), pos=4)
+abline(lm2, col="blue")
+summary(lm2)
+
 # Meta-analysis on ratio of standard deviations
 
 Fr <- data$sd.asd^2 / data$sd.ctrl^2
@@ -166,7 +189,7 @@ ci_F <- cbind(Fr/qf(1-alpha/2, df1, df2), Fr/qf(alpha/2, df1, df2))
 
 TE <- log(Fr) - digamma(df1/2) + digamma(df2/2) + log(df1/df2)
 TEse <- sqrt(trigamma(df1/2) + trigamma(df2/2))
-meta_F <- metagen(TE, TEse, studlab=data$label, data=data, comb.fixed=F)
+meta_F <- metagen(TE, TEse, studlab=data$label, data=data, comb.fixed=F, method.tau="REML")
 forest(meta_F)
 
 # Meta-regression
@@ -198,6 +221,19 @@ power.rand <- 1 - pt(ct, df, ncp.rand) + pt(-ct, df, ncp.rand)
 TE.reg <- colSums(rbind(1, data$age.asd, data$iq.asd) * c(reg9$b))
 ncp.reg <- TE.reg/sqrt(1/data$n.asd+1/data$n.ctrl)
 power.reg <- 1 - pt(ct, df, ncp.reg) + pt(-ct, df, ncp.reg)
+
+# Power of the meta-analysis given an expected heterogeneity and effect size
+
+es <- 0.3 # Expected effect size
+hg <- 1   # Expected heterogeneity (".33" for small, "1" for moderate, & "3" for large)
+# hg <- 1 / (1 - meta$I2) - 1
+
+V <- 1/data$n.asd+1/data$n.ctrl
+T2 <- hg / (mean(1 / V))
+Vm <- 1 / (sum(1 / (V + T2)))
+ncp.z = es/sqrt(Vm)
+cz <- qnorm(1-alpha/2)
+power.meta = pnorm(-cz, ncp.z) + pnorm(cz, ncp.z, lower.tail = F)
 
 # Data export
 
