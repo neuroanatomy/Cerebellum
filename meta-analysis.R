@@ -27,6 +27,8 @@ combinedsd <- function(n, mean, sd, na.rm=F) {
   })
 }
 
+# Set suffix according to region of interest
+
 csv.file <- sprintf("means-%s.txt", suffix)
 pcurve.file <- sprintf("pcurve-%s.txt", suffix)
 data.file <- sprintf("data-%s.txt", suffix)
@@ -83,20 +85,9 @@ pvalue <- 2*pt(-abs(tvalue), df=df)
 
 # Meta-regressions
 
-diq <- data$iq.ctrl - data$iq.asd
-riq <- data$iq.ctrl / data$iq.asd
 reg1 <- metareg(meta, ~age.asd)
 reg2 <- metareg(meta, ~iq.asd)
-reg3 <- metareg(meta, ~iq.ctrl)
-reg4 <- metareg(meta, ~diq)
-reg5 <- metareg(meta, ~riq)
-reg6 <- metareg(meta, ~age.asd+diq)
-reg7 <- metareg(meta, ~iq.asd+iq.ctrl)
-reg8 <- metareg(meta, ~age.asd+iq.asd+iq.ctrl)
 reg9 <- metareg(meta, ~age.asd+iq.asd)
-reg10 <- metareg(meta, ~age.asd+iq.asd+I(age.asd*iq.asd))
-reg11 <- metareg(meta, ~I(n.male.asd/n.asd))
-reg12 <- metareg(meta, ~age.asd+iq.asd+I(n.male.asd/n.asd))
 
 # bubble(reg1)
 reg9$slab <- data$label
@@ -161,22 +152,6 @@ plot2Dreg2 <- function(reg) {
 }
 
 plot2Dreg(reg9)
-
-# Regressions between age sd and volume sd
-
-f1 <- data$sd.asd/data$mean.asd ~ data$age.sd.asd
-lm1 <- lm(f1)
-plot(f1)
-text(f1, label=seq(length(data$label)), pos=4)
-abline(lm1, col="blue")
-summary(lm1)
-
-f2 <- data$sd.asd/data$mean.asd ~ data$age.asd
-lm2 <- lm(f2)
-plot(f2)
-text(f2, label=seq(length(data$label)), pos=4)
-abline(lm2, col="blue")
-summary(lm2)
 
 # Meta-analysis on ratio of standard deviations
 
