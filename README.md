@@ -1,10 +1,10 @@
 # Cerebellum
 
+This repository contains the code used for the analyses described in our manuscript "Traut et al. (2017). Cerebellar Volume in Autism: Literature Meta-analysis and Analysis of the Autism Brain Imaging Data Exchange Cohort. Biological Psychiatry. https://doi.org/10.1016/j.biopsych.2017.09.029" (Preprint: https://www.biorxiv.org/content/10.1101/104984v3).
+
 ![psm_v26_d761_inferior_surface_of_the_cerebellum](https://cloud.githubusercontent.com/assets/2310732/22600049/3762a1ae-ea39-11e6-990f-7cb88209e664.jpg)
 
 ## Analysis of cerebellar volumes and areas differences between individuals with ASD and controls
-
-This repository contains the code used for the analyses described in our manuscript "Traut et al. (2017). Cerebellar Volume in Autism: Literature Meta-analysis and Analysis of the Autism Brain Imaging Data Exchange Cohort. Biological Psychiatry. https://doi.org/10.1016/j.biopsych.2017.09.029" (Preprint: https://www.biorxiv.org/content/10.1101/104984v3).
 
 ### Meta-analysis of the literature
 
