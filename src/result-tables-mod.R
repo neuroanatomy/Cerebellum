@@ -1,14 +1,15 @@
-getsd <- function() {
-  path <- try(sys.frame(1)$ofile, silent=T)
-  if (is.null(path)) {
-    path <- paste(getSrcDirectory(function(dummy) {dummy}), "dummy", sep="/")
-  } else if (is.null(path)) {
-    # Rscript
-    initial.options <- commandArgs(trailingOnly = FALSE)
-    file.arg.name <- "--file="
-    path <- sub(file.arg.name, "", initial.options[grep(file.arg.name, initial.options)])
-  }
-  dirname(path)
+get.script.dir <- function(){
+  initial.options <- commandArgs(trailingOnly = FALSE)
+  file.arg.name <- "--file="
+  script.name <- sub(file.arg.name, "", initial.options[grep(file.arg.name, initial.options)])
+  sourceDir <- getSrcDirectory(function(dummy) {dummy})
+  if (length(script.name)) { # called from command
+    (dirname(script.name))
+  } else if (nchar(sourceDir)) { # called with source
+    sourceDir
+  } else if (rstudioapi::isAvailable()) { # called from RStudio
+    dirname(rstudioapi::getSourceEditorContext()$path)
+  } else getwd()
 }
 
 combinedsd <- function(n, mean, sd, na.rm=F) {
@@ -22,7 +23,8 @@ combinedsd <- function(n, mean, sd, na.rm=F) {
   })
 }
 
-script.dir <- getsd()
+script.dir <- get.script.dir()
+meta.dir <- file.path(base.dir, "data", "meta-analysis")
 
 regions <- c("Cerebellum", "Cerebellum WM", "Cerebellum GM", "Whole vermis", "Lobules I-V", "Lobules VI-VII", "Lobules VIII-X")
 

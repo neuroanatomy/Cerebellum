@@ -1,8 +1,22 @@
 # Generate two tables by site from ABIDE data:
-# 1) Summarize data for subjects used in linear models
-# 2) Summarize data for subjects used in meta-analysis
+# 1) Summarize data for subjects used in linear models: data-abide.txt
+# 2) Summarize data for subjects used in meta-analysis: means-abide-Cbl.txt
 
 library(foreign)
+
+get.script.dir <- function(){
+  initial.options <- commandArgs(trailingOnly = FALSE)
+  file.arg.name <- "--file="
+  script.name <- sub(file.arg.name, "", initial.options[grep(file.arg.name, initial.options)])
+  sourceDir <- getSrcDirectory(function(dummy) {dummy})
+  if (length(script.name)) { # called from command
+    (dirname(script.name))
+  } else if (nchar(sourceDir)) { # called with source
+    sourceDir
+  } else if (rstudioapi::isAvailable()) { # called from RStudio
+    dirname(rstudioapi::getSourceEditorContext()$path)
+  } else getwd()
+}
 
 datatable <- function(dg, roi="CB") {
 	label <- names(dg)
@@ -29,8 +43,15 @@ datatable <- function(dg, roi="CB") {
 			mean.asd, mean.ctrl, sd.asd, sd.ctrl)
 }
 
+
+script.dir <- get.script.dir()
+base.dir <- system(paste("cd", script.dir, "&& git rev-parse --show-toplevel"), intern=T)
+abide.dir <- file.path(base.dir, "data", "abide")
+meta.dir <- file.path(base.dir, "data", "meta-analysis")
+
+
 # table import
-data.jmp <- read.xport("cerebellum.stx")
+data.jmp <- read.xport(file.path(abide.dir, "cerebellum.stx"))
 
 # quality check filter
 df <- subset(data.jmp, CBANALYS == "Include")
@@ -48,7 +69,7 @@ data$n.male.asd.tot <- data.tot[rownames(data),]$n.male.asd
 data$n.ctrl.tot <- data.tot[rownames(data),]$n.ctrl
 data$n.male.ctrl.tot <- data.tot[rownames(data),]$n.male.ctrl
 
-write.table(data, "data-abide.txt", row.names=F, quote=F, sep="\t")
+write.table(data, file.path(abide.dir, "data-abide.txt"), row.names=F, quote=F, sep="\t")
 
 
 # Equalization of the mean age and the sd of age of the two groups of each cohort
@@ -121,12 +142,12 @@ dg2 <- lapply(dg, function(s) {
 })
 
 data.Cbl <- na.omit(datatable(dg2, "CB"))
-write.table(data.Cbl, "means-abide-Cbl.txt", row.names=F, quote=F, sep="\t")
+write.table(data.Cbl, file.path(meta.dir, "means-abide-Cbl.txt"), row.names=F, quote=F, sep="\t")
 
 data.Cbl_WM <- na.omit(datatable(dg2, "CBWM"))
-write.table(data.Cbl_WM, "means-abide-Cbl_WM.txt", row.names=F, quote=F, sep="\t")
+write.table(data.Cbl_WM, file.path(meta.dir, "means-abide-Cbl_WM.txt"), row.names=F, quote=F, sep="\t")
 
 data.Cbl_GM <- na.omit(datatable(dg2, "CBGM"))
-write.table(data.Cbl_GM, "means-abide-Cbl_GM.txt", row.names=F, quote=F, sep="\t")
+write.table(data.Cbl_GM, file.path(meta.dir, "means-abide-Cbl_GM.txt"), row.names=F, quote=F, sep="\t")
 
 
