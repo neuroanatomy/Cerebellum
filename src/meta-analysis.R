@@ -3,17 +3,18 @@ library(metafor)
 library(reshape)
 library(ggplot2)
 
-getsd <- function() {
-  path <- try(sys.frame(1)$ofile, silent=T)
-  if (is.null(path)) {
-    path <- paste(getSrcDirectory(function(dummy) {dummy}), "dummy", sep="/")
-  } else if (is.null(path)) {
-    # Rscript
-    initial.options <- commandArgs(trailingOnly = FALSE)
-    file.arg.name <- "--file="
-    path <- sub(file.arg.name, "", initial.options[grep(file.arg.name, initial.options)])
-  }
-  dirname(path)
+get.script.dir <- function(){
+  initial.options <- commandArgs(trailingOnly = FALSE)
+  file.arg.name <- "--file="
+  script.name <- sub(file.arg.name, "", initial.options[grep(file.arg.name, initial.options)])
+  sourceDir <- getSrcDirectory(function(dummy) {dummy})
+  if (length(script.name)) { # called from command
+    (dirname(script.name))
+  } else if (nchar(sourceDir)) { # called with source
+    sourceDir
+  } else if (rstudioapi::isAvailable()) { # called from RStudio
+    dirname(rstudioapi::getSourceEditorContext()$path)
+  } else getwd()
 }
 
 combinedsd <- function(n, mean, sd, na.rm=F) {
@@ -28,14 +29,19 @@ combinedsd <- function(n, mean, sd, na.rm=F) {
 }
 
 # Set suffix according to region of interest
+suffix <- "Cbl"
 
+# input files
 csv.file <- sprintf("means-%s.txt", suffix)
+# output files
 pcurve.file <- sprintf("pcurve-%s.txt", suffix)
 data.file <- sprintf("data-%s.txt", suffix)
 
-script.dir <- getsd()
+script.dir <- get.script.dir()
+base.dir <- system(paste("cd", script.dir, "&& git rev-parse --show-toplevel"), intern=T)
+meta.dir <- file.path(base.dir, "data", "meta-analysis")
 
-data <- read.table(paste(script.dir, csv.file, sep="/"), h=T, sep="\t")
+data <- read.table(file.path(meta.dir, csv.file), h=T, sep="\t")
 data[data == 0] <- NA
 
 total <- data[0,]
@@ -79,7 +85,7 @@ df <- data$n.asd+data$n.ctrl-2
 tvalue <- (data$mean.asd-data$mean.ctrl)/(pooledsd * sqrt(1/data$n.asd+1/data$n.ctrl))
 
 ttext <- paste("t(", df, ")=", tvalue, sep="")
-writeLines(ttext, paste(script.dir, pcurve.file, sep="/"))
+writeLines(ttext, file.path(meta.dir, pcurve.file))
 
 pvalue <- 2*pt(-abs(tvalue), df=df)
 
@@ -88,8 +94,6 @@ pvalue <- 2*pt(-abs(tvalue), df=df)
 reg1 <- metareg(meta, ~age.asd)
 reg2 <- metareg(meta, ~iq.asd)
 reg9 <- metareg(meta, ~age.asd+iq.asd)
-reg11 <- metareg(meta, ~I(n.male.asd/n.asd))
-reg12 <- metareg(meta, ~age.asd+iq.asd+I(n.male.asd/n.asd))
 
 # bubble(reg1)
 reg9$slab <- data$label
@@ -166,7 +170,7 @@ ci_F <- cbind(Fr/qf(1-alpha/2, df1, df2), Fr/qf(alpha/2, df1, df2))
 
 TE <- log(Fr) - digamma(df1/2) + digamma(df2/2) + log(df1/df2)
 TEse <- sqrt(trigamma(df1/2) + trigamma(df2/2))
-meta_F <- metagen(TE, TEse, studlab=data$label, data=data, comb.fixed=F)
+meta_F <- metagen(TE, TEse, studlab=data$label, data=data, comb.fixed=F, method.tau="REML")
 forest(meta_F)
 
 # Meta-regression
@@ -199,6 +203,19 @@ TE.reg <- colSums(rbind(1, data$age.asd, data$iq.asd) * c(reg9$b))
 ncp.reg <- TE.reg/sqrt(1/data$n.asd+1/data$n.ctrl)
 power.reg <- 1 - pt(ct, df, ncp.reg) + pt(-ct, df, ncp.reg)
 
+# Power of the meta-analysis given an expected heterogeneity and effect size
+
+es <- 0.3 # Expected effect size
+hg <- 1   # Expected heterogeneity (".33" for small, "1" for moderate, & "3" for large)
+# hg <- 1 / (1 - meta$I2) - 1
+
+V <- 1/data$n.asd+1/data$n.ctrl
+T2 <- hg / (mean(1 / V))
+Vm <- 1 / (sum(1 / (V + T2)))
+ncp.z = es/sqrt(Vm)
+cz <- qnorm(1-alpha/2)
+power.meta = pnorm(-cz, ncp.z) + pnorm(cz, ncp.z, lower.tail = F)
+
 # Data export
 
 dataf <- rbind(data, total)
@@ -213,4 +230,4 @@ table <- data.frame(dataf$label, sprintf("%s (%s)", dataf$n.asd, dataf$n.female.
                      sprintf("%s ± %s", dataf$mean.asd, dataf$sd.asd), sprintf("%s ± %s", dataf$mean.ctrl, dataf$sd.ctrl))
 
 names(table) <- c("Study", "N ASD (F)", "N Ctrl (F)", "Age ASD", "Age Ctrl", "IQ ASD", "IQ Ctrl", "Measure ASD", "Measure Ctrl")
-write.table(table, paste(script.dir, data.file, sep="/"), row.names=F, quote=F, sep="\t")
+write.table(table, file.path(meta.dir, data.file), row.names=F, quote=F, sep="\t")

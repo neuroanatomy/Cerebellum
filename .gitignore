@@ -1,0 +1,5 @@
+/data/meta-analysis/data-*
+/data/meta-analysis/pcurve-*
+/data/meta-analysis/means-abide-*
+
+.DS_Store

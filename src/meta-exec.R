@@ -1,26 +1,34 @@
+# Execute meta-analysis
+
 library(meta)
 library(metafor)
 
-getsd <- function() {
-  path <- try(sys.frame(1)$ofile, silent=T)
-  if (is.null(path)) {
-    path <- paste(getSrcDirectory(function(dummy) {dummy}), "dummy", sep="/")
-  } else if (is.null(path)) {
-    # Rscript
-    initial.options <- commandArgs(trailingOnly = FALSE)
-    file.arg.name <- "--file="
-    path <- sub(file.arg.name, "", initial.options[grep(file.arg.name, initial.options)])
-  }
-  dirname(path)
+get.script.dir <- function(){
+  initial.options <- commandArgs(trailingOnly = FALSE)
+  file.arg.name <- "--file="
+  script.name <- sub(file.arg.name, "", initial.options[grep(file.arg.name, initial.options)])
+  sourceDir <- getSrcDirectory(function(dummy) {dummy})
+  if (length(script.name)) { # called from command
+    (dirname(script.name))
+  } else if (nchar(sourceDir)) { # called with source
+    sourceDir
+  } else if (rstudioapi::isAvailable()) { # called from RStudio
+    dirname(rstudioapi::getSourceEditorContext()$path)
+  } else getwd()
 }
+
+script.dir <- get.script.dir()
+meta.dir <- file.path(base.dir, "data", "meta-analysis")
+
+# Variables needed to be defined:
+# - suffix
 
 csv.file <- sprintf("means-%s.txt", suffix)
 pcurve.file <- sprintf("pcurve-%s.txt", suffix)
 
-script.dir <- getsd()
 alpha <- 0.05
 
-data <- read.table(paste(script.dir, csv.file, sep="/"), h=T, sep="\t")
+data <- read.table(paste(meta.dir, csv.file, sep="/"), h=T, sep="\t")
 data[data == 0] <- NA
 
 # Meta-analysis on standard mean differences
@@ -35,7 +43,7 @@ df <- data$n.asd+data$n.ctrl-2
 tvalue <- (data$mean.asd-data$mean.ctrl)/(pooledsd * sqrt(1/data$n.asd+1/data$n.ctrl))
 
 ttext <- paste("t(", df, ")=", tvalue, sep="")
-writeLines(ttext, paste(script.dir, pcurve.file, sep="/"))
+writeLines(ttext, paste(meta.dir, pcurve.file, sep="/"))
 
 p_SMD <- 2*pt(-abs(tvalue), df=df)
 
