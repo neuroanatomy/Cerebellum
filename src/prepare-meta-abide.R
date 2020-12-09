@@ -10,11 +10,11 @@ get.script.dir <- function(){
   script.name <- sub(file.arg.name, "", initial.options[grep(file.arg.name, initial.options)])
   sourceDir <- getSrcDirectory(function(dummy) {dummy})
   if (length(script.name)) { # called from command
-    (dirname(script.name))
+	(dirname(script.name))
   } else if (nchar(sourceDir)) { # called with source
-    sourceDir
+	sourceDir
   } else if (rstudioapi::isAvailable()) { # called from RStudio
-    dirname(rstudioapi::getSourceEditorContext()$path)
+	dirname(rstudioapi::getSourceEditorContext()$path)
   } else getwd()
 }
 
@@ -51,11 +51,13 @@ meta.dir <- file.path(base.dir, "data", "meta-analysis")
 
 
 # table import
-data.jmp <- read.xport(file.path(abide.dir, "cerebellum.stx"))
+data.jmp <- read.xport(file.path(abide.dir, "cerebellum.stx"), stringsAsFactors=T)
 
 # quality check filter
 df <- subset(data.jmp, CBANALYS == "Include")
+# split data frame by site
 ds <- split(df, df$SITE_ID2)
+# split each sub data frame by diagnosis group
 dg <- lapply(ds, function(x) split(x, x$DX_GROUP))
 
 # no quality check filter
@@ -76,24 +78,24 @@ write.table(data, file.path(abide.dir, "data-abide.txt"), row.names=F, quote=F, 
 
 # Stouffer method for combining p-values
 stouffer=function(p.values, weights) {
-  pnorm(sum(weights*qnorm(p.values),na.rm=TRUE)/sqrt(sum(weights[!is.na(p.values)]^2)))
+	pnorm(sum(weights*qnorm(p.values),na.rm=TRUE)/sqrt(sum(weights[!is.na(p.values)]^2)))
 }
 
 score <- function(s2) {
-  # Fisher's exact test
-	ni <- sapply(s2, sapply, nrow)
+	# Fisher's exact test
+	ni <- do.call(cbind, lapply(s2, sapply, nrow))
 	psr <- fisher.test(ni)$p.value
 	
 	# Student test
 	pmd <- sapply(c(m=1, f=2), function(i)
-	    if (rowSums(ni)[i]==0) 1 else
-	    t.test(s2$ASD[[i]]$AGE_AT_S, s2$Control[[i]]$AGE_AT_S)$p.value)
+		if (rowSums(ni)[i]==0) 1 else
+		t.test(s2$ASD[[i]]$AGE_AT_S, s2$Control[[i]]$AGE_AT_S)$p.value)
 	pmdc <- stouffer(pmd, rowSums(ni))
 	
 	# F-test of equality of variances
 	pvr <- sapply(c(m=1, f=2), function(i)
-	  if (rowSums(ni)[i]==0) 1 else
-	  var.test(s2$ASD[[i]]$AGE_AT_S, s2$Control[[i]]$AGE_AT_S)$p.value)
+		if (rowSums(ni)[i]==0) 1 else
+		var.test(s2$ASD[[i]]$AGE_AT_S, s2$Control[[i]]$AGE_AT_S)$p.value)
 	pvrc <- stouffer(pvr, rowSums(ni))
 	
 	min(psr, pmdc, pvrc)
@@ -102,16 +104,16 @@ score <- function(s2) {
 dg2 <- lapply(dg, function(s) {
 	s2 <- lapply(s, function(x) split(x, x$SEX))
 	while (T) {
-	  # Contingency table in function of diagnosis and sex
-		ni <- sapply(s2, sapply, nrow)
-		# effecive of smaller group by sex
+		# Contingency table in function of diagnosis and sex
+		ni <- do.call(cbind, lapply(s2, sapply, nrow))
+		# effective of smaller group by sex
 		ns <- apply(ni, 1, min)
 		# if one group by sex is too small, restore individuals for the other sex and remove individuals for that sex
 		sup <- ns < 3 & ns > 0
 		if (sum(sup) == 1)
-		  s2 <- lapply(s, function(x) split(x, x$SEX))
+			s2 <- lapply(s, function(x) split(x, x$SEX))
 		s2 <- lapply(s2, function(x) {x[sup] <- lapply(x[sup], function(y) y[0,]); x})
-		ni <- sapply(s2, sapply, nrow)
+		ni <- do.call(cbind, lapply(s2, sapply, nrow))
 		
 		s <- lapply(s2, do.call, what=rbind)
 		if (nrow(s$ASD) < 2 | nrow(s$Control) < 2)
@@ -149,5 +151,3 @@ write.table(data.Cbl_WM, file.path(meta.dir, "means-abide-Cbl_WM.txt"), row.name
 
 data.Cbl_GM <- na.omit(datatable(dg2, "CBGM"))
 write.table(data.Cbl_GM, file.path(meta.dir, "means-abide-Cbl_GM.txt"), row.names=F, quote=F, sep="\t")
-
-
